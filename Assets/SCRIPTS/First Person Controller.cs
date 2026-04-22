@@ -6,7 +6,11 @@ public class FirstPersonController : MonoBehaviour
 {
     [Header("Movimento")]
     public float speed = 5f;
+    public float sprintSpeed = 10f;
     public float gravity = -9.81f;
+
+    [Header("Sprint")]
+    public float stickForwardThreshold = 0.7f;
 
     [Header("Camera")]
     public Transform playerCamera;
@@ -28,8 +32,8 @@ public class FirstPersonController : MonoBehaviour
     private Vector3 velocity;
     private float xRotation = 0f;
     private Camera cam;
-
-    private bool isZooming = false; // <-- NUOVO
+    private bool isZooming = false;
+    private bool isSprinting = false;
 
     void Start()
     {
@@ -52,8 +56,12 @@ public class FirstPersonController : MonoBehaviour
 
     void HandleLook()
     {
-        float currentControllerSensitivity = isZooming ? controllerSensitivity * zoomSensitivityMultiplier : controllerSensitivity;
-        float currentMouseSensitivity = isZooming ? mouseSensitivity * zoomSensitivityMultiplier : mouseSensitivity;
+        float currentControllerSensitivity = isZooming
+            ? controllerSensitivity * zoomSensitivityMultiplier
+            : controllerSensitivity;
+        float currentMouseSensitivity = isZooming
+            ? mouseSensitivity * zoomSensitivityMultiplier
+            : mouseSensitivity;
 
         float mouseX = Input.GetAxis("Mouse X") * currentMouseSensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * currentMouseSensitivity * Time.deltaTime;
@@ -64,7 +72,12 @@ public class FirstPersonController : MonoBehaviour
         float lookY = mouseY + stickY;
 
         xRotation -= lookY;
-        xRotation = Mathf.Clamp(xRotation, -verticalLookLimit, verticalLookLimit);
+
+        if (Gamepad.current != null && Gamepad.current.rightShoulder.isPressed)
+            xRotation = Mathf.Clamp(xRotation, 0f, verticalLookLimit);
+        else
+            xRotation = Mathf.Clamp(xRotation, -verticalLookLimit, verticalLookLimit);
+
         playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * lookX);
     }
@@ -73,8 +86,38 @@ public class FirstPersonController : MonoBehaviour
     {
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
+
+        // --- WASD aggiunto ---
+        if (Input.GetKey(KeyCode.A)) moveX -= 1f;
+        if (Input.GetKey(KeyCode.D)) moveX += 1f;
+        if (Input.GetKey(KeyCode.S)) moveZ -= 1f;
+        if (Input.GetKey(KeyCode.W)) moveZ += 1f;
+        moveX = Mathf.Clamp(moveX, -1f, 1f);
+        moveZ = Mathf.Clamp(moveZ, -1f, 1f);
+        // ---------------------
+
+        if (Gamepad.current != null)
+        {
+            float leftStickY = Gamepad.current.leftStick.y.ReadValue();
+            bool stickUp = leftStickY > stickForwardThreshold;
+            bool l3Pressed = Gamepad.current.leftStickButton.wasPressedThisFrame;
+
+            // L3 premuto UNA VOLTA mentre la levetta è in su → attiva sprint
+            if (l3Pressed && stickUp)
+                isSprinting = true;
+
+            // Levetta non più in su → disattiva sprint
+            if (!stickUp)
+                isSprinting = false;
+        }
+        else
+        {
+            isSprinting = false;
+        }
+
+        float currentSpeed = isSprinting ? sprintSpeed : speed;
         Vector3 move = transform.right * moveX + transform.forward * moveZ;
-        controller.Move(move * speed * Time.deltaTime);
+        controller.Move(move * currentSpeed * Time.deltaTime);
 
         if (controller.isGrounded && velocity.y < 0)
             velocity.y = -2f;
@@ -91,7 +134,8 @@ public class FirstPersonController : MonoBehaviour
 
     void HandleInteraction()
     {
-        bool interactPressed = Input.GetKeyDown(KeyCode.Mouse0) || (Gamepad.current != null && Gamepad.current.rightShoulder.wasPressedThisFrame);
+        bool interactPressed = Input.GetKeyDown(KeyCode.Mouse0) ||
+            (Gamepad.current != null && Gamepad.current.rightShoulder.wasPressedThisFrame);
         if (!interactPressed) return;
 
         Ray ray = new Ray(cam.transform.position, cam.transform.forward);
@@ -101,21 +145,13 @@ public class FirstPersonController : MonoBehaviour
         }
     }
 
-    // 🔥 ZOOM AUTOMATICO TRIGGER
-
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("ZOOM"))
-        {
-            isZooming = true;
-        }
+        if (other.CompareTag("ZOOM")) isZooming = true;
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("ZOOM"))
-        {
-            isZooming = false;
-        }
+        if (other.CompareTag("ZOOM")) isZooming = false;
     }
 }

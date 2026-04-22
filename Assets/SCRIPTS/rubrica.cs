@@ -1,67 +1,77 @@
 ﻿using UnityEngine;
-using System.Text; // per usare StringBuilder e lavorare con le stringhe
+using System.Text;
+using System.Collections.Generic;
 
-[RequireComponent(typeof(AudioSource))]  //richiesta componente audio source
-public class Rubrica : MonoBehaviour //enuncio classe dello script, monobehaviour per attaccarla a un game object
+[RequireComponent(typeof(AudioSource))]
+public class Rubrica : MonoBehaviour
 {
-    public static Rubrica Instance; //variabile statica per implementare singleton
+    public static Rubrica Instance;
 
-    [Header("Numeri salvati")] //finestrella sull'inspector
+    [Header("Numeri salvati")]
     public AudioClip wrong;
     public AudioClip ghostbusterSbagliato;
     public AudioClip numero1;
     public AudioClip numero2;
 
-    private AudioSource audioSource; // variabile privata per far riferimento al gameobject assegnato
-    private StringBuilder currentNumber = new StringBuilder(); //variabile privata per lo stringbuilding interno
+    [Header("Durate chiamate (secondi)")]
+    public float durataNumero1 = 19f;
+    public float durataNumero2 = 17f;
 
-    void Awake() //come reagisce lo script allo start, controlla singleton
+    [Header("Fantasmi")]
+    public GhostAI fantasma1;
+    public GhostAI fantasma2;
+    public GhostAI fantasma3;
+
+    private AudioSource audioSource;
+    private StringBuilder currentNumber = new StringBuilder();
+
+    void Awake()
     {
-        if (Instance == null) //se non esiste un'altra istanza
-            Instance = this; //istanza diventa questo game object per non creare duplicati
+        if (Instance == null)
+            Instance = this;
         else
         {
-            Destroy(gameObject); //altrimenti distrugge questo game object
+            Destroy(gameObject);
             return;
         }
-
-        audioSource = GetComponent<AudioSource>(); //prende la componente audiosource
-        audioSource.playOnAwake = false; //play allo start false per non far partire tutti i soni contemporaneamente
+        audioSource = GetComponent<AudioSource>();
+        audioSource.playOnAwake = false;
     }
 
-   
-    public void AddNumber(int num) //aggiungere un numero alla stringa corrente
+    public void AddNumber(int num)
     {
-        currentNumber.Append(num); //aggiunge il numero allo string builder
+        currentNumber.Append(num);
         Debug.Log("Numero attuale: " + currentNumber.ToString());
     }
 
-    public string GetCurrentNumber() //variabile per prendere il nuero corrente e convertirlo in string
+    public string GetCurrentNumber()
     {
         return currentNumber.ToString();
     }
-   
-    public void ConfirmNumber() //arrivo della conferma 
+
+    public void ConfirmNumber()
     {
-        string numero = currentNumber.ToString(); //conversione del numero arrivato in stringa
+        string numero = currentNumber.ToString();
         Debug.Log("Numero confermato: " + numero);
 
-        if (numero == "1111")
-            PlayGhostbusterSbagliato();           //numeri salvati
-        else if (numero == "1211")
+        if (numero == "328333")
+            PlayGhostbusterSbagliato();
+        else if (numero == "391999")
             PlayNumero1();
-        else if (numero == "1221")
+        else if (numero == "370222")
             PlayNumero2();
         else
             PlayWrong();
 
-        ClearCurrentNumber(); //cancellazione del numero ricevuto
+        ClearCurrentNumber();
     }
-    public void ClearCurrentNumber() //variabile per cancellare il numero digitato dopo la conferma
+
+    public void ClearCurrentNumber()
     {
         currentNumber.Clear();
     }
-    private void PlayGhostbusterSbagliato()  //hai sbagliato ghostbuster
+
+    private void PlayGhostbusterSbagliato()
     {
         if (ghostbusterSbagliato != null)
             audioSource.PlayOneShot(ghostbusterSbagliato);
@@ -69,31 +79,40 @@ public class Rubrica : MonoBehaviour //enuncio classe dello script, monobehaviou
             Debug.LogWarning("ghostbusterSbagliato NON assegnato!");
     }
 
-    private void PlayNumero1() //azzeccato 
+    private void PlayNumero1()
     {
         if (numero1 != null)
             audioSource.PlayOneShot(numero1);
         else
             Debug.LogWarning("numero1 NON assegnato!");
+
+        List<GhostAI> lista = new List<GhostAI>();
+        if (fantasma1 != null) lista.Add(fantasma1);
+        if (fantasma2 != null) lista.Add(fantasma2);
+
+        if (lista.Count > 0)
+            DeathManager.Instance.AvviaSequenzaMorte(lista, durataNumero1);
     }
 
-    private void PlayNumero2() //azzeccato
+    private void PlayNumero2()
     {
-        if (numero2 != null)  
+        if (numero2 != null)
             audioSource.PlayOneShot(numero2);
         else
             Debug.LogWarning("numero2 NON assegnato!");
+
+        List<GhostAI> lista = new List<GhostAI>();
+        if (fantasma3 != null) lista.Add(fantasma3); // controlla fantasma3 direttamente
+
+        if (lista.Count > 0)
+            DeathManager.Instance.AvviaSequenzaMorte(lista, durataNumero2); // usa durataNumero2
     }
 
-    private void PlayWrong() //numero inesistente
+    private void PlayWrong()
     {
         if (wrong != null)
             audioSource.PlayOneShot(wrong);
         else
             Debug.LogWarning("wrong NON assegnato!");
     }
-
-
-
-  
 }
